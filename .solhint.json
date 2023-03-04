@@ -1,0 +1,14 @@
+
+
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "code-complexity": ["error", 10],
+"compiler-version": ["off","^0.8.0"],
+    "func-name-mixedcase": "off",
+    "named-parameters-mapping": "warn",
+    "no-console": "off",
+"quotes": ["off","double"],
+    "not-rely-on-time": "off"
+  }
+}

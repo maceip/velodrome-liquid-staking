@@ -1,8 +1,7 @@
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.15;
 
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
-import {ERC4626} from "../lib/solmate/src/mixins/ERC4626.sol";
-import {ERC721TokenReceiver} from "../lib/solmate/src/tokens/ERC721.sol";
+import {ERC1155TokenReceiver} from "../lib/solmate/src/tokens/ERC1155.sol";
 import {Owned} from "../lib/solmate/src/auth/Owned.sol";
 import {SafeTransferLib} from "../lib/solmate/src//utils/SafeTransferLib.sol";
 
@@ -10,10 +9,11 @@ import "../interfaces/IVoter.sol";
 import "../interfaces/IVotingEscrow.sol";
 import "../interfaces/IRewardsDistributor.sol";
 
-contract VeloVault is ERC4626, ERC721TokenReceiver, Owned {
+contract VeVeloController is Owned {
   using SafeTransferLib for ERC20;
 
   ERC20 public immutable velo;
+  ERC20 public immutable veVelo;
 
   IVoter public immutable voter;
   IVotingEscrow public immutable votingEscrow;
@@ -32,14 +32,13 @@ contract VeloVault is ERC4626, ERC721TokenReceiver, Owned {
 
   constructor(
     address _owner,
-    ERC20 _underlying,
-    string memory _name,
-    string memory _symbol,
+    address _VeVeloAddress,
     address _VeloAddress,
     address _VoterAddress,
     address _VotingEscrowAddress,
     address _RewardsDistributorAddress
-  ) ERC4626(_underlying, _name, _symbol) Owned(_owner) {
+  ) Owned(_owner) {
+    veVelo = ERC20(_VeVeloAddress);
     velo = ERC20(_VeloAddress);
     voter = IVoter(_VoterAddress);
     votingEscrow = IVotingEscrow(_VotingEscrowAddress);
@@ -49,14 +48,14 @@ contract VeloVault is ERC4626, ERC721TokenReceiver, Owned {
   function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
     return
       interfaceId == type(ERC20).interfaceId ||
-      interfaceId == type(ERC721TokenReceiver).interfaceId ||
+      interfaceId == type(ERC1155TokenReceiver).interfaceId ||
       interfaceId == 0x01ffc9a7;
   }
 
-  function lockVELO(
-    uint256 _tokenAmount,
-    uint256 _lockDuration
-  ) external onlyOwner {
+  function lockVELO(uint256 _tokenAmount, uint256 _lockDuration)
+    external
+    onlyOwner
+  {
     velo.approve(address(votingEscrow), _tokenAmount);
     uint256 NFTId = votingEscrow.create_lock(_tokenAmount, _lockDuration);
     veNFTIds.push(NFTId);
@@ -64,17 +63,17 @@ contract VeloVault is ERC4626, ERC721TokenReceiver, Owned {
     emit GenerateVeNFT(NFTId, _tokenAmount, weeksLocked);
   }
 
-  function relockVELO(
-    uint256 _NFTId,
-    uint256 _lockDuration
-  ) external onlyOwner {
+  function relockVELO(uint256 _NFTId, uint256 _lockDuration)
+    external
+    onlyOwner
+  {
     votingEscrow.increase_unlock_time(_NFTId, _lockDuration);
     uint256 weeksLocked = (_lockDuration / 1 weeks) * 1 weeks;
     emit RelockVeNFT(_NFTId, weeksLocked);
   }
 
   function vote(
-    uint[] calldata _NFTIds,
+    uint256[] calldata _NFTIds,
     address[] calldata _poolVote,
     uint256[] calldata _weights
   ) external onlyOwner {
@@ -131,7 +130,7 @@ contract VeloVault is ERC4626, ERC721TokenReceiver, Owned {
   function claimBribesMultiNFTs(
     address[] calldata _bribes,
     address[][] calldata _tokens,
-    uint[] calldata _tokenIds
+    uint256[] calldata _tokenIds
   ) external {
     uint256 length = _tokenIds.length;
     for (uint256 i = 0; i < length; ++i) {
@@ -143,7 +142,7 @@ contract VeloVault is ERC4626, ERC721TokenReceiver, Owned {
   function claimFeesMultiNFTs(
     address[] calldata _fees,
     address[][] calldata _tokens,
-    uint[] calldata _tokenIds
+    uint256[] calldata _tokenIds
   ) external {
     uint256 length = _tokenIds.length;
     for (uint256 i = 0; i < length; ++i) {
@@ -159,16 +158,16 @@ contract VeloVault is ERC4626, ERC721TokenReceiver, Owned {
     emit ClaimedRebases(_tokenIds, block.timestamp);
   }
 
-  function totalAssets() public view override returns (uint256) {
-    return asset.balanceOf(address(this));
-  }
-
-  function onERC721Received(
+  function onERC1155Received(
     address _operator,
     address _from,
-    uint256 _id,
-    bytes calldata _data
-  ) public virtual override returns (bytes4) {
-    return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
+    uint256 id,
+    uint256 value,
+    bytes calldata data
+  ) public virtual returns (bytes4) {
+    return
+      bytes4(
+        keccak256("onERC1155Received(address,address,uint256,uint256,bytes)")
+      );
   }
 }
