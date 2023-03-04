@@ -3,3 +3,4 @@ node_modules
 contracts/out
 contracts/cache
 cache
+contracts/lib
