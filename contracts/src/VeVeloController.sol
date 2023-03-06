@@ -1,7 +1,7 @@
 pragma solidity ^0.8.15;
 
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
-import {ERC1155TokenReceiver} from "../lib/solmate/src/tokens/ERC1155.sol";
+import {ERC721TokenReceiver} from "../lib/solmate/src/tokens/ERC721.sol";
 import {Owned} from "../lib/solmate/src/auth/Owned.sol";
 import {SafeTransferLib} from "../lib/solmate/src//utils/SafeTransferLib.sol";
 
@@ -9,11 +9,13 @@ import "../interfaces/IVoter.sol";
 import "../interfaces/IVotingEscrow.sol";
 import "../interfaces/IRewardsDistributor.sol";
 
-contract VeVeloController is Owned {
+import {VeVelo} from "./VeVelo.sol";
+
+contract VeVeloController is ERC721TokenReceiver, Owned {
   using SafeTransferLib for ERC20;
 
+  VeVelo public immutable veVeloToken;
   ERC20 public immutable velo;
-  ERC20 public immutable veVelo;
 
   IVoter public immutable voter;
   IVotingEscrow public immutable votingEscrow;
@@ -38,7 +40,7 @@ contract VeVeloController is Owned {
     address _VotingEscrowAddress,
     address _RewardsDistributorAddress
   ) Owned(_owner) {
-    veVelo = ERC20(_VeVeloAddress);
+    veVeloToken = VeVelo(_VeVeloAddress);
     velo = ERC20(_VeloAddress);
     voter = IVoter(_VoterAddress);
     votingEscrow = IVotingEscrow(_VotingEscrowAddress);
@@ -48,18 +50,24 @@ contract VeVeloController is Owned {
   function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
     return
       interfaceId == type(ERC20).interfaceId ||
-      interfaceId == type(ERC1155TokenReceiver).interfaceId ||
+      interfaceId == type(ERC721TokenReceiver).interfaceId ||
       interfaceId == 0x01ffc9a7;
   }
 
-  function lockVELO(uint256 _tokenAmount, uint256 _lockDuration)
-    external
-    onlyOwner
-  {
-    velo.approve(address(votingEscrow), _tokenAmount);
+  function lockVELO(uint256 _tokenAmount) external {
+    uint256 _lockDuration = 365 days * 4;
+
+    SafeTransferLib.safeTransferFrom(
+      velo,
+      msg.sender,
+      address(this),
+      _tokenAmount
+    );
+    veVeloToken.mint(msg.sender, _tokenAmount);
     uint256 NFTId = votingEscrow.create_lock(_tokenAmount, _lockDuration);
     veNFTIds.push(NFTId);
     uint256 weeksLocked = (_lockDuration / 1 weeks) * 1 weeks;
+
     emit GenerateVeNFT(NFTId, _tokenAmount, weeksLocked);
   }
 
@@ -158,16 +166,12 @@ contract VeVeloController is Owned {
     emit ClaimedRebases(_tokenIds, block.timestamp);
   }
 
-  function onERC1155Received(
+  function onERC721Received(
     address _operator,
     address _from,
-    uint256 id,
-    uint256 value,
-    bytes calldata data
-  ) public virtual returns (bytes4) {
-    return
-      bytes4(
-        keccak256("onERC1155Received(address,address,uint256,uint256,bytes)")
-      );
+    uint256 _id,
+    bytes calldata _data
+  ) public virtual override returns (bytes4) {
+    return ERC721TokenReceiver.onERC721Received.selector;
   }
 }

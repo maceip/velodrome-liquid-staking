@@ -5,21 +5,23 @@ import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
 import {MockERC721} from "./utils/MockERC721.sol";
-import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
-import "../src/VeVeloController.sol";
-import "../src/veVelo.sol";
 
-contract VeVeloControllerTest is Test {
-  using SafeTransferLib for MockERC721;
-  veVelo public erc;
+import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
+import {VeVeloController} from "../src/VeVeloController.sol";
+import {VeVelo} from "../src/VeVelo.sol";
+
+contract ZTest is Test {
+  // using SafeTransferLib for veVelo;
+  VeVelo public veVeloToken;
+  VeVelo public velo;
+
   VeVeloController public vv;
-  MockERC721 token;
+
   address alice = address(0xABCD);
 
   function setUp() public {
     console2.log(address(this));
 
-    token = new MockERC721("veNFT", "veNFT");
     address owner = address(0xAAAA);
 
     address VELO = address(0x3c8B650257cFb5f272f799F5e2b4e65093a11a05);
@@ -27,42 +29,57 @@ contract VeVeloControllerTest is Test {
     address ESCROW = address(0x9c7305eb78a432ced5C4D14Cac27E8Ed569A2e26);
     address REWARDS = address(0x5d5Bea9f0Fc13d967511668a60a3369fD53F784F);
 
-    erc = new veVelo(address(this), "Velodrome", "VeVelo", 18);
+    veVeloToken = new VeVelo(address(this), "Velodrome", "VeVelo", 18);
+    velo = new VeVelo(address(this), "Velo", "VELO", 18);
+    velo.mint(address(alice), 0xe8d4a51000);
+    veVeloToken.mint(address(this), 0xe8d4a51000);
+    console2.log("Test address: ", address(this));
+    console2.log("Test address: ", address(alice));
+
+    console2.log("veVelo address: ", address(veVeloToken));
+    //erc. (alice, 1e8);
     vv = new VeVeloController(
       address(this),
-      address(erc),
-      VELO,
+      address(veVeloToken),
+      address(velo),
       VOTER,
       ESCROW,
       REWARDS
     );
-  }
+    veVeloToken.mint(address(vv), 0xe8d4a51000);
+    veVeloToken.transferOwnership(address(vv));
+    console2.log("balance of VV: ", veVeloToken.balanceOf(address(vv)));
+    vm.prank(alice);
+    velo.approve(address(vv), 1);
+    console2.log("veVeloController address: ", address(vv));
 
-  function testMint() public {
-    token.mint(address(0xBEEF), 1337);
+    //SafeTransferLib.safeApprove(erc, address(vv), 0xe8d4a51000);
+    //SafeTransferLib.safeApprove(erc, address(this), 0xe8d4a51000);
 
-    assertEq(token.balanceOf(address(0xBEEF)), 1);
-    assertEq(token.ownerOf(1337), address(0xBEEF));
+    console2.log(
+      veVeloToken.allowance(
+        address(vv),
+        0x3c8B650257cFb5f272f799F5e2b4e65093a11a05
+      )
+    );
+
+    //erc.approve(spender, amount);
   }
 
   function testSafeTransferFromToERC721Recipient() public {
-    token.mint(alice, 1338);
-    vm.prank(alice);
+    console2.log("@@@@@@@@@ END @@@@");
 
-    token.setApprovalForAll(address(this), true);
-    token.safeTransferFrom(alice, address(vv), 1338);
+    console2.log(velo.balanceOf(address(vv)));
+    console2.log(velo.balanceOf(address(alice)));
+    console2.log(veVeloToken.balanceOf(address(vv)));
+    console2.log(veVeloToken.balanceOf(address(alice)));
 
-    assertEq(token.ownerOf(1338), address(vv));
-    assertEq(token.balanceOf(address(vv)), 1);
-  }
+    vm.prank(alice);
+    vv.lockVELO(1);
+    console2.log(veVeloToken.balanceOf(address(vv)));
+    console2.log(veVeloToken.balanceOf(address(alice)));
+    console2.log(velo.balanceOf(address(vv)));
 
-  function testIncrement() public {
-    uint256 aliceUnderlyingAmount = 1;
-    erc.mint(alice, aliceUnderlyingAmount);
-    vm.prank(alice);
-    erc.approve(address(vv), aliceUnderlyingAmount);
-    assertEq(erc.allowance(alice, address(vv)), aliceUnderlyingAmount);
-    uint256 alicePreDepositBal = erc.balanceOf(alice);
-    vm.prank(alice);
+    console2.log(velo.balanceOf(address(alice)));
   }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {Owned} from "../lib/solmate/src/auth/Owned.sol";
 
-contract veVelo is ERC20, Owned {
+contract VeVelo is ERC20, Owned {
   constructor(
     address _owner,
     string memory _name,
